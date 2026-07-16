@@ -36,6 +36,7 @@ type BinaryCommand struct {
 
 func NewBinaryCommand(binary string, arg ...string) (*BinaryCommand, error) {
 	var err error
+	binary = platformBinaryPath(binary)
 
 	binary, err = exec.LookPath(binary)
 	if err != nil {
@@ -48,9 +49,7 @@ func NewBinaryCommand(binary string, arg ...string) (*BinaryCommand, error) {
 	}
 
 	cmd := exec.Command(binary, arg...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Pdeathsig: syscall.SIGKILL,
-	}
+	configureChildProcess(cmd)
 	return &BinaryCommand{
 		Cmd:     cmd,
 		RWMutex: &sync.RWMutex{},
@@ -74,7 +73,7 @@ func (bc *BinaryCommand) StopWithSignal(signal syscall.Signal) {
 	bc.RLock()
 	defer bc.RUnlock()
 	if bc.Process != nil {
-		if err := bc.Process.Signal(signal); err != nil {
+		if err := signalChildProcess(bc.Process, signal); err != nil {
 			logrus.WithError(err).Error("failed to send signal to process")
 		}
 	}
@@ -84,7 +83,7 @@ func (bc *BinaryCommand) Stop() {
 	bc.RLock()
 	defer bc.RUnlock()
 	if bc.Process != nil {
-		if err := bc.Process.Signal(syscall.SIGINT); err != nil {
+		if err := interruptChildProcess(bc.Process); err != nil {
 			logrus.WithError(err).Error("failed to send signal to process")
 		}
 	}
@@ -94,7 +93,7 @@ func (bc *BinaryCommand) Kill() {
 	bc.RLock()
 	defer bc.RUnlock()
 	if bc.Process != nil {
-		if err := bc.Process.Signal(syscall.SIGKILL); err != nil {
+		if err := killChildProcess(bc.Process); err != nil {
 			logrus.WithError(err).Error("failed to send signal to process")
 		}
 	}

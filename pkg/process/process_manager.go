@@ -31,7 +31,11 @@ import (
 const (
 	MountCheckInterval = 10 * time.Second
 
-	DefaultEnginePortCount = 1
+	// V1 engines reserve control, frontend-data, and transition ports. Linux
+	// currently uses only control because its frontend data path is a Unix
+	// socket; reserving the same shape keeps allocation collision-free for
+	// Windows and permits mixed-version replacement without special cases.
+	DefaultEnginePortCount = 3
 )
 
 /* Lock order
@@ -59,9 +63,23 @@ type Manager struct {
 
 	Executor      Executor
 	HealthChecker HealthChecker
+	Lifecycle     Lifecycle
+}
+
+// Lifecycle couples process transitions to long-lived services which must
+// survive an engine process replacement. Implementations must make SwitchOver
+// atomic: ProcessReplace stops the old process only after it succeeds.
+type Lifecycle interface {
+	Started(*Process) error
+	SwitchOver(oldProcess, newProcess *Process) error
+	Deleted(*Process) error
 }
 
 func NewManager(ctx context.Context, portRange string, logsDir string) (*Manager, error) {
+	return NewManagerWithLifecycle(ctx, portRange, logsDir, nil)
+}
+
+func NewManagerWithLifecycle(ctx context.Context, portRange string, logsDir string, lifecycle Lifecycle) (*Manager, error) {
 	start, end, err := ParsePortRange(portRange)
 	if err != nil {
 		return nil, err
@@ -88,6 +106,7 @@ func NewManager(ctx context.Context, portRange string, logsDir string) (*Manager
 
 		Executor:      &BinaryExecutor{},
 		HealthChecker: &GRPCHealthChecker{},
+		Lifecycle:     lifecycle,
 	}
 	// help to kickstart the broadcaster
 	c, cancel := context.WithCancel(context.Background())
@@ -109,6 +128,12 @@ func (pm *Manager) startMonitoring() {
 			logrus.Infof("%s: stopped monitoring replicas due to the context done", types.ProcessManagerGrpcService)
 			done = true
 		case p := <-pm.processUpdateCh:
+			if pm.Lifecycle != nil && p.RPCResponse().Status.State == types.ProcessStateRunning {
+				if err := pm.Lifecycle.Started(p); err != nil {
+					logrus.WithError(err).Errorf("Process Manager: failed to activate lifecycle for process %v", p.Name)
+					p.Stop()
+				}
+			}
 			resp := p.RPCResponse()
 			pm.lock.RLock()
 			// Modify response to indicate deletion.
@@ -246,6 +271,11 @@ func (pm *Manager) ProcessDelete(ctx context.Context, req *rpc.ProcessDeleteRequ
 		return nil, status.Errorf(codes.NotFound, "cannot find process %v with UUID %v", req.Name, req.Uuid)
 	}
 
+	if pm.Lifecycle != nil {
+		if err := pm.Lifecycle.Deleted(p); err != nil {
+			return nil, errors.Wrapf(err, "refusing to stop process %v while its lifecycle service is active", p.Name)
+		}
+	}
 	p.Stop()
 
 	resp := p.RPCResponse()
@@ -527,6 +557,17 @@ func (pm *Manager) ProcessReplace(ctx context.Context, req *rpc.ProcessReplaceRe
 		}
 		logrus.Debugf("Process Manager: waiting for the replace process %v to start", req.Spec.Name)
 		time.Sleep(1 * time.Second)
+	}
+	if p.RPCResponse().Status.State != types.ProcessStateRunning {
+		cleanupReplacementProcess()
+		return nil, fmt.Errorf("timed out waiting for replacement process %v", p.Name)
+	}
+
+	if pm.Lifecycle != nil {
+		if err := pm.Lifecycle.SwitchOver(processToReplace, p); err != nil {
+			cleanupReplacementProcess()
+			return nil, errors.Wrapf(err, "failed to switch long-lived service from process %v", processToReplace.Name)
+		}
 	}
 
 	// cleanup the process to replace this should always be safe to call outside of a lock

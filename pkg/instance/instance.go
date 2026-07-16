@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"runtime"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -815,8 +816,13 @@ func processResponseToInstanceResponse(p *rpc.ProcessResponse, processType strin
 	targetPortStart := int32(0)
 	targetPortEnd := int32(0)
 	if processType == types.InstanceTypeEngine {
-		targetPortStart = p.Status.PortStart
-		targetPortEnd = p.Status.PortEnd
+		if runtime.GOOS == "windows" && processUsesFrontend(p.Spec.Args, "tgt-iscsi") {
+			targetPortStart = 3260
+			targetPortEnd = 3260
+		} else {
+			targetPortStart = p.Status.PortStart
+			targetPortEnd = p.Status.PortEnd
+		}
 	}
 	return &rpc.InstanceResponse{
 		Spec: &rpc.InstanceSpec{
@@ -844,6 +850,15 @@ func processResponseToInstanceResponse(p *rpc.ProcessResponse, processType strin
 		},
 		Deleted: p.Deleted,
 	}
+}
+
+func processUsesFrontend(args []string, expected string) bool {
+	for i, arg := range args {
+		if arg == "--frontend" && i+1 < len(args) {
+			return args[i+1] == expected
+		}
+	}
+	return false
 }
 
 func replicaResponseToInstanceResponse(r *spdkapi.Replica) *rpc.InstanceResponse {

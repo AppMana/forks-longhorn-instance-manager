@@ -4,7 +4,6 @@ import (
 	"context"
 	"sync"
 	"sync/atomic"
-	"syscall"
 )
 
 const (
@@ -36,13 +35,6 @@ func updateProgress(currentProgressAddr *uint32, newProgress uint32, done bool, 
 		atomic.StoreUint32(currentProgressAddr, newProgress)
 		ops.UpdateFileHandlingProgress(int(newProgress), done, err)
 	}
-}
-
-// get the file system block size
-func getFileSystemBlockSize(fileIo FileIoProcessor) (int, error) {
-	var stat syscall.Stat_t
-	err := syscall.Stat(fileIo.Name(), &stat)
-	return int(stat.Blksize), err
 }
 
 // mergeErrorChannels will merge all error channels into a single error out channel.

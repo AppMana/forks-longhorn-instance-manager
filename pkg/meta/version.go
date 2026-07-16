@@ -39,7 +39,7 @@ func GetVersion() VersionOutput {
 		GitCommit: GitCommit,
 		BuildDate: BuildDate,
 
-		InstanceManagerAPIVersion:    InstanceManagerAPIVersion,
+		InstanceManagerAPIVersion:    platformInstanceManagerAPIVersion(),
 		InstanceManagerAPIMinVersion: InstanceManagerAPIMinVersion,
 
 		InstanceManagerProxyAPIVersion:    InstanceManagerProxyAPIVersion,

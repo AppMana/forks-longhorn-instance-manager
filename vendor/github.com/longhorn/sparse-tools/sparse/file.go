@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"syscall"
 	"time"
 	"unsafe"
 
@@ -97,12 +96,7 @@ const (
 )
 
 func NewDirectFileIoProcessor(name string, flag int, perm os.FileMode, isCreate ...bool) (*DirectFileIoProcessor, error) {
-	file, err := os.OpenFile(name, syscall.O_DIRECT|flag, perm)
-
-	// if failed open existing and isCreate flag is true, we need to create it if asked to
-	if err != nil && len(isCreate) > 0 && isCreate[0] {
-		file, err = os.OpenFile(name, os.O_CREATE|syscall.O_DIRECT|flag, perm)
-	}
+	file, err := openDirectFile(name, flag, perm, len(isCreate) > 0 && isCreate[0])
 	if err != nil {
 		return nil, err
 	}

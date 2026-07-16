@@ -44,6 +44,26 @@ type ProcessWatcher struct {
 	grpc.ServerStream
 }
 
+type failingSwitchLifecycle struct {
+	sawRunningOld bool
+}
+
+func (*failingSwitchLifecycle) Started(*Process) error { return nil }
+func (l *failingSwitchLifecycle) SwitchOver(oldProcess, _ *Process) error {
+	l.sawRunningOld = oldProcess.RPCResponse().Status.State == types.ProcessStateRunning
+	return context.Canceled
+}
+func (*failingSwitchLifecycle) Deleted(*Process) error { return nil }
+
+type failingDeleteLifecycle struct{ sawRunning bool }
+
+func (*failingDeleteLifecycle) Started(*Process) error              { return nil }
+func (*failingDeleteLifecycle) SwitchOver(*Process, *Process) error { return nil }
+func (l *failingDeleteLifecycle) Deleted(p *Process) error {
+	l.sawRunning = p.RPCResponse().Status.State == types.ProcessStateRunning
+	return context.Canceled
+}
+
 func (pw *ProcessWatcher) Context() context.Context {
 	return context.Background()
 }
@@ -216,6 +236,49 @@ func (s *TestSuite) TestProcessReplace(c *C) {
 		}(i)
 	}
 	wg.Wait()
+}
+
+func (s *TestSuite) TestProcessReplaceKeepsOldProcessOnLifecycleFailure(c *C) {
+	name := "test_process_replace_lifecycle_failure"
+	lifecycle := &failingSwitchLifecycle{}
+	s.pm.Lifecycle = lifecycle
+	defer func() { s.pm.Lifecycle = nil }()
+
+	assertProcessCreation(c, s.pm, name, TestBinary)
+	before, err := s.pm.ProcessGet(context.TODO(), &rpc.ProcessGetRequest{Name: name})
+	c.Assert(err, IsNil)
+
+	_, err = s.pm.ProcessReplace(context.TODO(), &rpc.ProcessReplaceRequest{
+		Spec:            createProcessSpec(name, TestBinaryReplace),
+		TerminateSignal: "SIGHUP",
+	})
+	c.Assert(err, NotNil)
+	c.Assert(lifecycle.sawRunningOld, Equals, true)
+
+	after, err := s.pm.ProcessGet(context.TODO(), &rpc.ProcessGetRequest{Name: name})
+	c.Assert(err, IsNil)
+	c.Assert(after.Status.Uuid, Equals, before.Status.Uuid)
+	c.Assert(after.Spec.Binary, Equals, TestBinary)
+	c.Assert(after.Status.State, Equals, types.ProcessStateRunning)
+	assertProcessDeletion(c, s.pm, name)
+}
+
+func (s *TestSuite) TestProcessDeleteKeepsProcessOnLifecycleFailure(c *C) {
+	name := "test_process_delete_lifecycle_failure"
+	lifecycle := &failingDeleteLifecycle{}
+	s.pm.Lifecycle = lifecycle
+	defer func() { s.pm.Lifecycle = nil }()
+
+	assertProcessCreation(c, s.pm, name, TestBinary)
+	_, err := s.pm.ProcessDelete(context.TODO(), &rpc.ProcessDeleteRequest{Name: name})
+	c.Assert(err, NotNil)
+	c.Assert(lifecycle.sawRunning, Equals, true)
+
+	after, err := s.pm.ProcessGet(context.TODO(), &rpc.ProcessGetRequest{Name: name})
+	c.Assert(err, IsNil)
+	c.Assert(after.Status.State, Equals, types.ProcessStateRunning)
+	s.pm.Lifecycle = nil
+	assertProcessDeletion(c, s.pm, name)
 }
 
 // there was a race in the process UpdateChannel assignment

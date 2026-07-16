@@ -7,6 +7,7 @@ toolchain go1.26.3
 require (
 	github.com/cockroachdb/errors v1.13.0
 	github.com/google/uuid v1.6.0
+	github.com/gostor/gotgt v0.2.3-0.20260317071013-7f708d0cf945
 	github.com/longhorn/backupstore v0.0.0-20260525102750-1ed7dde50b68
 	github.com/longhorn/go-common-libs v0.0.0-20260525102658-c0739cd3e2c2
 	github.com/longhorn/go-spdk-helper v0.6.3-0.20260601101353-0be728aae70e
@@ -80,6 +81,7 @@ require (
 	github.com/longhorn/go-iscsi-helper v0.0.0-20260331100542-4c4c6f91525b // indirect
 	github.com/longhorn/sparse-tools v0.0.0-20260423074222-280e61de741a // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-ps v1.0.0 // indirect
 	github.com/moby/sys/mountinfo v0.7.2 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect

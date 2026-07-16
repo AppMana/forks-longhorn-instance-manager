@@ -1,3 +1,5 @@
+//go:build !windows
+
 package cmd
 
 import (
@@ -410,7 +412,11 @@ func setupProxyGRPCServer(ctx context.Context, logsDir, listen, diskServiceAddre
 }
 
 func setupProcessManagerGRPCServer(ctx context.Context, portRange, logsDir, listen string) (*process.Manager, *grpc.Server, net.Listener, error) {
-	srv, err := process.NewManager(ctx, portRange, logsDir)
+	lifecycle, err := newProcessLifecycle(ctx)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	srv, err := process.NewManagerWithLifecycle(ctx, portRange, logsDir, lifecycle)
 	if err != nil {
 		return nil, nil, nil, err
 	}
