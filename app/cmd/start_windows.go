@@ -29,7 +29,7 @@ func StartCmd() cli.Command {
 	return cli.Command{
 		Name: "daemon",
 		Flags: []cli.Flag{
-			cli.StringFlag{Name: "listen", Value: "localhost:8500"},
+			cli.StringFlag{Name: "listen", Value: "0.0.0.0:8500"},
 			cli.StringFlag{Name: "logs-dir", Value: `C:\var\log\longhorn\instances`},
 			cli.StringFlag{Name: "port-range", Value: "10000-20000"},
 			// Accepted for manifest parity. Windows V1 intentionally does not load SPDK.
