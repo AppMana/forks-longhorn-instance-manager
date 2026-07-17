@@ -6,8 +6,8 @@ github.com/AppMana/forks-go-common-libs v0.0.0-20260717150855-7a907bc7d6a5 h1:M1
 github.com/AppMana/forks-go-common-libs v0.0.0-20260717150855-7a907bc7d6a5/go.mod h1:6dyqqzjGfiPBn0OTKZcTBOjyViexE/L2D56741sch5s=
 github.com/AppMana/forks-go-iscsi-helper v0.0.0-20260717192730-2a31aff56325 h1:j8Jtp3tLTktCk5VJQrZ70L+wIafIZPgdmjCCBeR2NtQ=
 github.com/AppMana/forks-go-iscsi-helper v0.0.0-20260717192730-2a31aff56325/go.mod h1:mnJEfShAPDZxAKbz/tdNfGUUFy7Ckc/rq8X8IRz/b60=
-github.com/AppMana/forks-gotgt v0.2.3-0.20260717194034-cda5557b12de h1:bW+gjvxBzsaFZclxv/hSfcmCUT0XVH+UHSGlr9mMQWI=
-github.com/AppMana/forks-gotgt v0.2.3-0.20260717194034-cda5557b12de/go.mod h1:fTOB6SNpGEgLaXuUH9JrwGbIx6jJM6E+IJSqUXk6TbE=
+github.com/AppMana/forks-gotgt v0.2.3-0.20260717221604-ce7ab476dcdb h1:+Z8jaPfX/AcX5xBNzhESQF8VIJjA2gpVMFB9cREUuDg=
+github.com/AppMana/forks-gotgt v0.2.3-0.20260717221604-ce7ab476dcdb/go.mod h1:fTOB6SNpGEgLaXuUH9JrwGbIx6jJM6E+IJSqUXk6TbE=
 github.com/AppMana/forks-longhorn-engine v1.13.0-dev-20260503.0.20260717192730-5285af233cd1 h1:HNWRIeZyBz8sYwSt8qaOea42wLCoKzElCN4e0WHuSII=
 github.com/AppMana/forks-longhorn-engine v1.13.0-dev-20260503.0.20260717192730-5285af233cd1/go.mod h1:uDX16Cce5PY++/MYoZbSln4J0YrnsRxCwifjUl05IMg=
 github.com/AppMana/forks-longhorn-spdk-engine v1.13.0-dev-20260503.0.20260717192438-d0a6c4a30c0f h1:80JgcFSei+zROAgq/rZczQ6cpRH+NGsGdK+rQq8FfTU=

@@ -78,6 +78,29 @@ func stringsContains(s []string, p string) bool {
 	return false
 }
 
+func (conn *iscsiConnection) applyLoginIdentity(key, val string) error {
+	switch key {
+	case "InitiatorName":
+		conn.loginParam.initiator = val
+	case "InitiatorAlias":
+		conn.loginParam.initiatorAlias = val
+	case "TargetName":
+		conn.loginParam.target = val
+	case "SessionType":
+		switch val {
+		case "Normal":
+			conn.loginParam.sessionType = SESSION_NORMAL
+		case "Discovery":
+			conn.loginParam.sessionType = SESSION_DISCOVERY
+		default:
+			return fmt.Errorf("unsupported SessionType:%s", val)
+		}
+	default:
+		return nil
+	}
+	return nil
+}
+
 func (conn *iscsiConnection) processSecurityData() error {
 	securityKV := util.ParseKVText(conn.req.RawData)
 
@@ -93,10 +116,8 @@ func (conn *iscsiConnection) processSecurityData() error {
 			conn.loginParam.tgtNSG = LoginOperationalNegotiation
 			conn.loginParam.tgtTrans = true
 			conn.loginParam.authMethod = AuthNone
-		} else if key == "TargetName" {
-			conn.loginParam.target = val
-		} else if key == "InitiatorName" {
-			conn.loginParam.initiator = val
+		} else if err := conn.applyLoginIdentity(key, val); err != nil {
+			return err
 		}
 	}
 
@@ -123,20 +144,9 @@ func (conn *iscsiConnection) processLoginData() ([]util.KeyValue, error) {
 			continue
 		}
 
-		if key == "InitiatorName" {
-			conn.loginParam.initiator = val
-			continue
-		} else if key == "InitiatorAlias" {
-			conn.loginParam.initiatorAlias = val
-			continue
-		} else if key == "TargetName" {
-			conn.loginParam.target = val
-			continue
-		} else if key == "SessionType" {
-			if val == "Normal" {
-				conn.loginParam.sessionType = SESSION_NORMAL
-			} else {
-				conn.loginParam.sessionType = SESSION_DISCOVERY
+		if key == "InitiatorName" || key == "InitiatorAlias" || key == "TargetName" || key == "SessionType" {
+			if err := conn.applyLoginIdentity(key, val); err != nil {
+				return negoKV, err
 			}
 			continue
 		}
