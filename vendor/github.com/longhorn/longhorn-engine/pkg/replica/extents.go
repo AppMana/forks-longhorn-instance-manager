@@ -1,10 +1,6 @@
 package replica
 
-import (
-	"github.com/rancher/go-fibmap"
-
-	"github.com/longhorn/longhorn-engine/pkg/types"
-)
+import "github.com/longhorn/longhorn-engine/pkg/types"
 
 const MaxExtentsBuffer = 1024
 
@@ -14,9 +10,9 @@ func LoadDiffDiskLocationList(diffDisk *diffDisk, disk types.DiffDisk, currentFi
 	start := uint64(0)
 	end := uint64(len(diffDisk.location)) * uint64(diffDisk.sectorSize)
 	for {
-		extents, errno := fibmap.Fiemap(fd, start, end-start, MaxExtentsBuffer)
-		if errno != 0 {
-			return errno
+		extents, more, err := queryAllocatedExtents(fd, start, end-start, MaxExtentsBuffer)
+		if err != nil {
+			return err
 		}
 
 		if len(extents) == 0 {
@@ -27,11 +23,11 @@ func LoadDiffDiskLocationList(diffDisk *diffDisk, disk types.DiffDisk, currentFi
 			for i := int64(0); i < int64(extent.Length); i += diffDisk.sectorSize {
 				diffDisk.location[(int64(extent.Logical)+i)/diffDisk.sectorSize] = currentFileIndex
 			}
-			if extent.Flags&fibmap.FIEMAP_EXTENT_LAST != 0 {
-				return nil
-			}
 		}
 
+		if !more {
+			return nil
+		}
 		start = extents[len(extents)-1].Logical + extents[len(extents)-1].Length
 	}
 }

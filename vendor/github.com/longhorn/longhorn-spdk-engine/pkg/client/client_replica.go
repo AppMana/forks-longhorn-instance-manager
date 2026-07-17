@@ -10,7 +10,6 @@ import (
 	"github.com/longhorn/types/pkg/generated/spdkrpc"
 
 	"github.com/longhorn/longhorn-spdk-engine/pkg/api"
-	"github.com/longhorn/longhorn-spdk-engine/pkg/util"
 )
 
 // ReplicaCreate creates and starts a replica in the specified lvstore.
@@ -231,11 +230,11 @@ func (c *SPDKClient) ReplicaSnapshotCloneDstStart(name, snapshotName, srcReplica
 	defer func() {
 		err = errors.Wrapf(err, "failed to do ReplicaSnapshotCloneDstStart: replica: %v, snapshot: %v", name, snapshotName)
 	}()
-	if err := util.VerifyParams(
-		util.Param{Name: "name", Value: name},
-		util.Param{Name: "snapshotName", Value: snapshotName},
-		util.Param{Name: "srcReplicaName", Value: srcReplicaName},
-		util.Param{Name: "srcReplicaAddress", Value: srcReplicaAddress},
+	if err := verifyParams(
+		param{Name: "name", Value: name},
+		param{Name: "snapshotName", Value: snapshotName},
+		param{Name: "srcReplicaName", Value: srcReplicaName},
+		param{Name: "srcReplicaAddress", Value: srcReplicaAddress},
 	); err != nil {
 		return err
 	}
@@ -259,8 +258,8 @@ func (c *SPDKClient) ReplicaSnapshotCloneDstStatusCheck(name string) (resp *api.
 	defer func() {
 		err = errors.Wrapf(err, "failed to do ReplicaSnapshotCloneDstStatusCheck: replica name %v", name)
 	}()
-	if err := util.VerifyParams(
-		util.Param{Name: "name", Value: name},
+	if err := verifyParams(
+		param{Name: "name", Value: name},
 	); err != nil {
 		return nil, err
 	}
@@ -283,10 +282,10 @@ func (c *SPDKClient) ReplicaSnapshotCloneSrcStart(name, snapshotName, dstReplica
 	defer func() {
 		err = errors.Wrapf(err, "failed to do ReplicaSnapshotCloneSrcStart. Replica name: %v, snapshot name: %v", name, snapshotName)
 	}()
-	if err := util.VerifyParams(
-		util.Param{Name: "name", Value: name},
-		util.Param{Name: "snapshotName", Value: snapshotName},
-		util.Param{Name: "dstReplicaName", Value: dstReplicaName},
+	if err := verifyParams(
+		param{Name: "name", Value: name},
+		param{Name: "snapshotName", Value: snapshotName},
+		param{Name: "dstReplicaName", Value: dstReplicaName},
 	); err != nil {
 		return err
 	}
@@ -310,10 +309,10 @@ func (c *SPDKClient) ReplicaSnapshotCloneSrcStatusCheck(name, snapshotName, dstR
 	defer func() {
 		err = errors.Wrapf(err, "failed to do ReplicaSnapshotCloneSrcStatusCheck. Replica name: %v, snapshot name: %v", name, snapshotName)
 	}()
-	if err := util.VerifyParams(
-		util.Param{Name: "name", Value: name},
-		util.Param{Name: "snapshotName", Value: snapshotName},
-		util.Param{Name: "dstReplicaName", Value: dstReplicaName},
+	if err := verifyParams(
+		param{Name: "name", Value: name},
+		param{Name: "snapshotName", Value: snapshotName},
+		param{Name: "dstReplicaName", Value: dstReplicaName},
 	); err != nil {
 		return nil, err
 	}
@@ -338,9 +337,9 @@ func (c *SPDKClient) ReplicaSnapshotCloneSrcFinish(name, dstReplicaName string) 
 	defer func() {
 		err = errors.Wrapf(err, "failed to do ReplicaSnapshotCloneSrcFinish. replica: %v, src replica: %v", dstReplicaName, name)
 	}()
-	if err := util.VerifyParams(
-		util.Param{Name: "name", Value: name},
-		util.Param{Name: "dstReplicaName", Value: dstReplicaName},
+	if err := verifyParams(
+		param{Name: "name", Value: name},
+		param{Name: "dstReplicaName", Value: dstReplicaName},
 	); err != nil {
 		return err
 	}

@@ -10,7 +10,6 @@ import (
 	"github.com/longhorn/types/pkg/generated/spdkrpc"
 
 	"github.com/longhorn/longhorn-spdk-engine/pkg/api"
-	"github.com/longhorn/longhorn-spdk-engine/pkg/util"
 )
 
 // EngineCreate creates and starts an engine instance with the requested replicas.
@@ -319,11 +318,11 @@ func (c *SPDKClient) EngineSnapshotHashStatus(name, snapshotName string) (respon
 
 // EngineSnapshotClone clones a snapshot from a source engine into the target engine.
 func (c *SPDKClient) EngineSnapshotClone(name, snapshotName, srcEngineName, srcEngineAddress string, cloneMode spdkrpc.CloneMode) error {
-	if err := util.VerifyParams(
-		util.Param{Name: "name", Value: name},
-		util.Param{Name: "snapshotName", Value: snapshotName},
-		util.Param{Name: "srcEngineName", Value: srcEngineName},
-		util.Param{Name: "srcEngineAddress", Value: srcEngineAddress},
+	if err := verifyParams(
+		param{Name: "name", Value: name},
+		param{Name: "snapshotName", Value: snapshotName},
+		param{Name: "srcEngineName", Value: srcEngineName},
+		param{Name: "srcEngineAddress", Value: srcEngineAddress},
 	); err != nil {
 		return errors.Wrapf(err, "failed to clone snapshot for engine %s, snapshotName %s, srcEngineName %s, srcEngineAddress %s",
 			name, snapshotName, srcEngineName, srcEngineAddress)
@@ -471,10 +470,10 @@ func (c *SPDKClient) EngineBackupRestore(req *BackupRestoreRequest) error {
 		return nil
 	}
 
-	taskErr := util.NewTaskError()
+	taskErr := newTaskError()
 	for replicaAddress, replicaErr := range recv.Errors {
 		replicaURL := "tcp://" + replicaAddress
-		taskErr.Append(util.NewReplicaError(replicaURL, errors.New(replicaErr)))
+		taskErr.Append(newReplicaError(replicaURL, errors.New(replicaErr)))
 	}
 
 	return taskErr

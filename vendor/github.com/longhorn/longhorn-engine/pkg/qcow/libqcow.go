@@ -1,3 +1,5 @@
+//go:build !windows
+
 package qcow
 
 // #cgo LDFLAGS: -lqcow -lz -pthread

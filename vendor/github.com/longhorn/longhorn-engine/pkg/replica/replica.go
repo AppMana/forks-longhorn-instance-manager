@@ -13,10 +13,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"syscall"
 
 	"github.com/cockroachdb/errors"
-	"github.com/rancher/go-fibmap"
 	"github.com/sirupsen/logrus"
 
 	"github.com/longhorn/sparse-tools/sparse"
@@ -304,11 +302,7 @@ func (r *Replica) isExtentSupported() error {
 		}
 	}()
 
-	fiemapFile := fibmap.NewFibmapFile(file)
-	if _, errno := fiemapFile.Fiemap(uint32(fileInfo.Size())); errno != 0 {
-		return errno
-	}
-	return nil
+	return extentQueriesSupported(file.Fd(), uint64(fileInfo.Size()))
 }
 func (r *Replica) insertBackingFile() {
 	if r.info.BackingFile == nil {
@@ -780,7 +774,7 @@ func (r *Replica) createNewHead(oldHead, parent, created string, size int64) (f 
 		}
 	}()
 
-	if err := syscall.Truncate(r.diskPath(newHeadName), size); err != nil {
+	if err := os.Truncate(r.diskPath(newHeadName), size); err != nil {
 		return nil, disk{}, rollbackFunc, err
 	}
 

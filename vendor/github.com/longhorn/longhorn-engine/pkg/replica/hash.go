@@ -20,6 +20,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/longhorn/sparse-tools/sparse"
+	sparseutil "github.com/longhorn/sparse-tools/util"
 
 	xattrType "github.com/longhorn/sparse-tools/types"
 
@@ -251,13 +252,7 @@ func (t *SnapshotHashJob) isSnapshotSilentlyCorrupted(checksum string) bool {
 }
 
 func GetSnapshotChangeTime(snapshotName string) (string, error) {
-	fileInfo, err := os.Stat(diskutil.GenerateSnapshotDiskName(snapshotName))
-	if err != nil {
-		return "", err
-	}
-
-	stat := fileInfo.Sys().(*syscall.Stat_t)
-	return time.Unix(int64(stat.Ctim.Sec), int64(stat.Ctim.Nsec)).String(), nil
+	return sparseutil.GetFileChangeTime(diskutil.GenerateSnapshotDiskName(snapshotName))
 }
 
 func GetSnapshotHashInfoFromChecksumFile(snapshotName string) (*xattrType.SnapshotHashInfo, error) {

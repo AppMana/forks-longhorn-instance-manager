@@ -8,8 +8,6 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/sirupsen/logrus"
 
-	"github.com/rancher/go-fibmap"
-
 	"github.com/longhorn/longhorn-engine/pkg/types"
 	"github.com/longhorn/longhorn-engine/pkg/util"
 )
@@ -306,11 +304,11 @@ func (d *diffDisk) lookup(sector int64) (byte, error) {
 
 	if d.location[sector] == 0 {
 		for i := len(d.files) - 1; i > 1; i-- {
-			e, errno := fibmap.Fiemap(d.files[i].Fd(), uint64(sector*d.sectorSize), uint64(d.sectorSize), 1)
-			if errno != 0 {
-				return 0, fmt.Errorf("%v", errno)
+			extents, _, err := queryAllocatedExtents(d.files[i].Fd(), uint64(sector*d.sectorSize), uint64(d.sectorSize), 1)
+			if err != nil {
+				return 0, err
 			}
-			if len(e) > 0 {
+			if len(extents) > 0 {
 				d.location[sector] = byte(i)
 				break
 			}

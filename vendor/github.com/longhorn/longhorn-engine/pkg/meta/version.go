@@ -1,5 +1,7 @@
 package meta
 
+import "runtime"
+
 const (
 	// CLIAPIVersion used to communicate with user e.g. longhorn-manager
 	CLIAPIVersion = 12
@@ -29,12 +31,86 @@ type VersionOutput struct {
 	GitCommit string `json:"gitCommit"`
 	BuildDate string `json:"buildDate"`
 
-	CLIAPIVersion           int `json:"cliAPIVersion"`
-	CLIAPIMinVersion        int `json:"cliAPIMinVersion"`
-	ControllerAPIVersion    int `json:"controllerAPIVersion"`
-	ControllerAPIMinVersion int `json:"controllerAPIMinVersion"`
-	DataFormatVersion       int `json:"dataFormatVersion"`
-	DataFormatMinVersion    int `json:"dataFormatMinVersion"`
+	CLIAPIVersion           int                `json:"cliAPIVersion"`
+	CLIAPIMinVersion        int                `json:"cliAPIMinVersion"`
+	ControllerAPIVersion    int                `json:"controllerAPIVersion"`
+	ControllerAPIMinVersion int                `json:"controllerAPIMinVersion"`
+	DataFormatVersion       int                `json:"dataFormatVersion"`
+	DataFormatMinVersion    int                `json:"dataFormatMinVersion"`
+	Capabilities            EngineCapabilities `json:"capabilities"`
+}
+
+type EngineCapabilities struct {
+	Controller []string `json:"controller"`
+	Replica    []string `json:"replica"`
+	Frontend   []string `json:"frontend"`
+	Disk       []string `json:"disk"`
+}
+
+const (
+	CapabilityV1               = "engine:v1"
+	CapabilityRWO              = "access-mode:rwo"
+	CapabilityRWOP             = "access-mode:rwop"
+	CapabilityRWX              = "access-mode:rwx"
+	CapabilityBestEffort       = "data-locality:best-effort"
+	CapabilityStrictLocal      = "data-locality:strict-local"
+	CapabilityEncryption       = "volume:encryption"
+	CapabilityBackingImage     = "volume:backing-image"
+	CapabilityFilesystemFreeze = "snapshot:filesystem-freeze"
+	CapabilityISCSI            = "frontend:iscsi"
+	CapabilityLiveUpgrade      = "frontend:live-upgrade"
+	CapabilityExt4             = "workload-fs:ext4"
+	CapabilityXFS              = "workload-fs:xfs"
+	CapabilityNTFS             = "workload-fs:ntfs"
+	CapabilityReFS             = "workload-fs:refs"
+	CapabilitySparse           = "replica-store:sparse"
+	CapabilityReplicaNTFS      = "replica-store:ntfs"
+	CapabilityReplicaReFS      = "replica-store:refs"
+)
+
+func GetCapabilities() EngineCapabilities {
+	base := []string{
+		CapabilityV1,
+		CapabilityRWO,
+		CapabilityRWOP,
+		CapabilityBestEffort,
+	}
+	if runtime.GOOS == "windows" {
+		return EngineCapabilities{
+			Controller: append([]string{}, base...),
+			Replica:    append([]string{}, base...),
+			Frontend: []string{
+				CapabilityISCSI,
+				CapabilityLiveUpgrade,
+				CapabilityNTFS,
+				CapabilityReFS,
+			},
+			Disk: []string{
+				CapabilitySparse,
+				CapabilityReplicaNTFS,
+				CapabilityReplicaReFS,
+			},
+		}
+	}
+
+	base = append(base, CapabilityBackingImage)
+	linux := append(base,
+		CapabilityRWX,
+		CapabilityStrictLocal,
+		CapabilityEncryption,
+		CapabilityFilesystemFreeze,
+	)
+	return EngineCapabilities{
+		Controller: append([]string{}, linux...),
+		Replica:    append([]string{}, linux...),
+		Frontend: []string{
+			CapabilityISCSI,
+			CapabilityLiveUpgrade,
+			CapabilityExt4,
+			CapabilityXFS,
+		},
+		Disk: []string{CapabilitySparse},
+	}
 }
 
 func GetVersion() VersionOutput {
@@ -49,5 +125,6 @@ func GetVersion() VersionOutput {
 		ControllerAPIMinVersion: ControllerAPIMinVersion,
 		DataFormatVersion:       DataFormatVersion,
 		DataFormatMinVersion:    DataFormatMinVersion,
+		Capabilities:            GetCapabilities(),
 	}
 }

@@ -23,6 +23,22 @@ require (
 	k8s.io/mount-utils v0.36.1
 )
 
+// Windows V1 support currently spans upstream modules. Keep each source change
+// in its owning public fork; vendor/ is generated from these immutable pins.
+replace github.com/gostor/gotgt => github.com/AppMana/forks-gotgt v0.2.3-0.20260717191431-2d3bde6d6fff
+
+replace github.com/longhorn/backupstore => github.com/AppMana/forks-backupstore v0.0.0-20260717192730-23c8e70f4c7e
+
+replace github.com/longhorn/go-common-libs => github.com/AppMana/forks-go-common-libs v0.0.0-20260717150855-7a907bc7d6a5
+
+replace github.com/longhorn/go-iscsi-helper => github.com/AppMana/forks-go-iscsi-helper v0.0.0-20260717192730-2a31aff56325
+
+replace github.com/longhorn/longhorn-engine => github.com/AppMana/forks-longhorn-engine v1.13.0-dev-20260503.0.20260717192730-5285af233cd1
+
+replace github.com/longhorn/longhorn-spdk-engine => github.com/AppMana/forks-longhorn-spdk-engine v1.13.0-dev-20260503.0.20260717192438-d0a6c4a30c0f
+
+replace github.com/longhorn/sparse-tools => github.com/AppMana/forks-sparse-tools v0.0.0-20260717191423-736c89bb9e50
+
 require (
 	github.com/0xPolygon/polygon-edge v1.3.3 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.16.0 // indirect
@@ -109,7 +125,7 @@ require (
 	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a // indirect
 	golang.org/x/net v0.49.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/sys v0.43.0
 	golang.org/x/term v0.39.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
@@ -117,9 +133,9 @@ require (
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/api v0.36.0 // indirect
-	k8s.io/apimachinery v0.36.0 // indirect
-	k8s.io/client-go v0.36.0 // indirect
+	k8s.io/api v0.36.1 // indirect
+	k8s.io/apimachinery v0.36.1 // indirect
+	k8s.io/client-go v0.36.1 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20260317180543-43fb72c5454a // indirect
 	k8s.io/utils v0.0.0-20260210185600-b8788abfbbc2 // indirect
