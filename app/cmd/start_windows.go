@@ -9,19 +9,16 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
-	grpcHealth "google.golang.org/grpc/health"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/keepalive"
-	"google.golang.org/grpc/reflection"
 
 	rpc "github.com/longhorn/types/pkg/generated/imrpc"
 
 	"github.com/longhorn/longhorn-instance-manager/pkg/process"
+	"github.com/longhorn/longhorn-instance-manager/pkg/types"
 	"github.com/longhorn/longhorn-instance-manager/pkg/util"
 )
 
@@ -55,19 +52,16 @@ func startWindows(c *cli.Context) error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	lifecycle, err := newProcessLifecycle(ctx)
-	if err != nil {
-		return err
-	}
-	manager, err := process.NewManagerWithLifecycle(ctx, c.String("port-range"), logsDir, lifecycle)
+	addresses, err := getServiceAddresses(c.String("listen"))
 	if err != nil {
 		return err
 	}
 
-	var serverOptions []grpc.ServerOption
-	serverOptions = append(serverOptions, grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
-		MinTime: 10 * time.Second, PermitWithoutStream: true,
-	}))
+	manager, processServer, processListener, err := setupProcessManagerGRPCServer(ctx, c.String("port-range"), logsDir, addresses[types.ProcessManagerGrpcService])
+	if err != nil {
+		return err
+	}
+
 	var tlsConfig *tls.Config
 	if tlsDir := c.GlobalString("tls-dir"); tlsDir != "" {
 		tlsConfig, err = util.LoadServerTLS(
@@ -78,39 +72,62 @@ func startWindows(c *cli.Context) error {
 		}
 	}
 	if tlsConfig != nil {
-		logrus.Info("Creating Windows process-manager gRPC server with mTLS auth")
+		logrus.Info("Creating Windows proxy gRPC server with mTLS auth")
 	} else {
-		logrus.Info("Creating Windows process-manager gRPC server with no auth")
+		logrus.Info("Creating Windows proxy gRPC server with no auth")
 	}
-	grpcServer, listener, err := util.NewServer(c.String("listen"), tlsConfig, serverOptions...)
+	proxyServer, proxyListener, err := setupProxyGRPCServer(ctx, logsDir,
+		addresses[types.ProxyGRPCService], addresses[types.DiskGrpcService], addresses[types.SpdkGrpcService], tlsConfig)
 	if err != nil {
 		return err
 	}
-	return serveWindowsProcessManager(ctx, cancel, manager, grpcServer, listener)
+
+	servers := map[string]*grpc.Server{
+		types.ProcessManagerGrpcService: processServer,
+		types.ProxyGRPCService:          proxyServer,
+	}
+	listeners := map[string]net.Listener{
+		types.ProcessManagerGrpcService: processListener,
+		types.ProxyGRPCService:          proxyListener,
+	}
+	return serveWindowsV1Services(ctx, cancel, manager, servers, listeners)
 }
 
-func serveWindowsProcessManager(ctx context.Context, cancel context.CancelFunc, manager *process.Manager, server *grpc.Server, listener net.Listener) error {
-	rpc.RegisterProcessManagerServiceServer(server, manager)
-	healthServer := grpcHealth.NewServer()
-	healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
-	healthpb.RegisterHealthServer(server, healthServer)
-	reflection.Register(server)
-
+func serveWindowsV1Services(ctx context.Context, cancel context.CancelFunc, manager *process.Manager, servers map[string]*grpc.Server, listeners map[string]net.Listener) error {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
-	go func() {
-		<-signals
+	defer signal.Stop(signals)
+
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.Go(func() error {
+		select {
+		case <-signals:
+			logrus.Info("Windows instance manager received interrupt")
+		case <-groupCtx.Done():
+		}
 		cancel()
-		server.GracefulStop()
-	}()
-	go func() {
-		<-ctx.Done()
-		server.GracefulStop()
-	}()
-	logrus.Infof("Windows V1 process manager listening on %s; shared iSCSI target listening on :3260", listener.Addr())
-	err := server.Serve(listener)
-	cleanupWindowsProcesses(manager)
-	return err
+		for _, server := range servers {
+			server.Stop()
+		}
+		return nil
+	})
+
+	for name, server := range servers {
+		name, server := name, server
+		group.Go(func() error {
+			listener := listeners[name]
+			logrus.Infof("%s listening on %s", name, listener.Addr())
+			err := server.Serve(listener)
+			cancel()
+			if name == types.ProcessManagerGrpcService {
+				cleanupWindowsProcesses(manager)
+			}
+			return err
+		})
+	}
+
+	logrus.Info("Windows V1 instance manager started; shared iSCSI target listening on :3260")
+	return group.Wait()
 }
 
 func cleanupWindowsProcesses(manager *process.Manager) {

@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -38,7 +37,6 @@ import (
 	"github.com/longhorn/longhorn-instance-manager/pkg/health"
 	"github.com/longhorn/longhorn-instance-manager/pkg/instance"
 	"github.com/longhorn/longhorn-instance-manager/pkg/process"
-	"github.com/longhorn/longhorn-instance-manager/pkg/proxy"
 	"github.com/longhorn/longhorn-instance-manager/pkg/types"
 	"github.com/longhorn/longhorn-instance-manager/pkg/util"
 )
@@ -313,26 +311,6 @@ func start(c *cli.Context) (err error) {
 	return nil
 }
 
-func getServiceAddresses(listen string) (addresses map[string]string, err error) {
-	host, port, err := net.SplitHostPort(listen)
-	if err != nil {
-		return nil, err
-	}
-
-	intPort, err := strconv.Atoi(port)
-	if err != nil {
-		return nil, err
-	}
-
-	return map[string]string{
-		types.ProcessManagerGrpcService: net.JoinHostPort(host, strconv.Itoa(intPort)),
-		types.ProxyGRPCService:          net.JoinHostPort(host, strconv.Itoa(intPort+1)),
-		types.DiskGrpcService:           net.JoinHostPort(host, strconv.Itoa(intPort+2)),
-		types.InstanceGrpcService:       net.JoinHostPort(host, strconv.Itoa(intPort+3)),
-		types.SpdkGrpcService:           net.JoinHostPort(host, strconv.Itoa(intPort+4)),
-	}, nil
-}
-
 func setupDiskGRPCServer(ctx context.Context, listen, spdkServiceAddress string, spdkEnabled bool) (*grpc.Server, net.Listener, error) {
 	srv, err := disk.NewServer(ctx, spdkEnabled, spdkServiceAddress)
 	if err != nil {
@@ -384,59 +362,6 @@ func setupSPDKGRPCServer(ctx context.Context, portRange, listen string) (*grpc.S
 	reflection.Register(grpcServer)
 
 	return grpcServer, grpcListener, nil
-}
-
-func setupProxyGRPCServer(ctx context.Context, logsDir, listen, diskServiceAddress, spdkServiceAddress string, tlsConfig *tls.Config) (*grpc.Server, net.Listener, error) {
-	// TODO: skip proxy for replica instance manager pod
-	srv, err := proxy.NewProxy(ctx, logsDir, diskServiceAddress, spdkServiceAddress)
-	if err != nil {
-		return nil, nil, err
-	}
-	hc := health.NewProxyHealthCheckServer(srv)
-
-	grpcProxyServer, grpcProxyListener, err := util.NewServer(listen, tlsConfig,
-		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
-			MinTime:             10 * time.Second,
-			PermitWithoutStream: true,
-		}),
-	)
-	if err != nil {
-		return nil, nil, errors.Wrapf(err, "failed to setup %s", types.ProxyGRPCService)
-	}
-
-	rpc.RegisterProxyEngineServiceServer(grpcProxyServer, srv)
-	healthpb.RegisterHealthServer(grpcProxyServer, hc)
-	reflection.Register(grpcProxyServer)
-
-	return grpcProxyServer, grpcProxyListener, nil
-}
-
-func setupProcessManagerGRPCServer(ctx context.Context, portRange, logsDir, listen string) (*process.Manager, *grpc.Server, net.Listener, error) {
-	lifecycle, err := newProcessLifecycle(ctx)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	srv, err := process.NewManagerWithLifecycle(ctx, portRange, logsDir, lifecycle)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	hc := health.NewHealthCheckServer(srv)
-
-	grpcServer, grpcListener, err := util.NewServer(listen, nil,
-		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
-			MinTime:             10 * time.Second,
-			PermitWithoutStream: true,
-		}),
-	)
-	if err != nil {
-		return nil, nil, nil, errors.Wrapf(err, "failed to setup %s", types.ProcessManagerGrpcService)
-	}
-
-	rpc.RegisterProcessManagerServiceServer(grpcServer, srv)
-	healthpb.RegisterHealthServer(grpcServer, hc)
-	reflection.Register(grpcServer)
-
-	return srv, grpcServer, grpcListener, nil
 }
 
 func setupInstanceGRPCServer(ctx context.Context, logsDir, listen, processManagerServiceAddress, spdkServiceAddress string, tlsConfig *tls.Config, spdkEnabled bool) (*grpc.Server, net.Listener, error) {
