@@ -316,6 +316,7 @@ github.com/gostor/gotgt/pkg/api
 github.com/gostor/gotgt/pkg/config
 github.com/gostor/gotgt/pkg/port/iscsit
 github.com/gostor/gotgt/pkg/scsi
+github.com/gostor/gotgt/pkg/scsi/backingstore
 github.com/gostor/gotgt/pkg/scsi/backingstore/remote
 github.com/gostor/gotgt/pkg/util
 github.com/gostor/gotgt/pkg/util/numa

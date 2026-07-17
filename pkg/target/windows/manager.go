@@ -16,6 +16,7 @@ import (
 	"github.com/gostor/gotgt/pkg/config"
 	"github.com/gostor/gotgt/pkg/port/iscsit"
 	"github.com/gostor/gotgt/pkg/scsi"
+	_ "github.com/gostor/gotgt/pkg/scsi/backingstore"
 	_ "github.com/gostor/gotgt/pkg/scsi/backingstore/remote"
 	"github.com/sirupsen/logrus"
 
