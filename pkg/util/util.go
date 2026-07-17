@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -15,6 +16,9 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 
 	"k8s.io/mount-utils"
 
@@ -23,8 +27,6 @@ import (
 
 const (
 	DefaulCmdTimeout = time.Minute // one minute by default
-
-	GRPCHealthProbe = "/usr/local/bin/grpc_health_probe"
 )
 
 func Execute(binary string, args ...string) (string, error) {
@@ -93,10 +95,19 @@ func RemoveFile(file string) error {
 }
 
 func GRPCServiceReadinessProbe(address string) bool {
-	if _, err := Execute(GRPCHealthProbe, "-addr", address); err != nil {
+	// Keep the readiness check in-process so every supported host OS gets the
+	// same behavior. In particular, Windows HostProcess images do not contain
+	// the Linux /usr/local/bin/grpc_health_probe helper.
+	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
 		return false
 	}
-	return true
+	defer conn.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	response, err := healthpb.NewHealthClient(conn).Check(ctx, &healthpb.HealthCheckRequest{})
+	return err == nil && response.GetStatus() == healthpb.HealthCheckResponse_SERVING
 }
 
 func Now() string {
