@@ -14,8 +14,19 @@ func configureChildProcess(cmd *exec.Cmd) {
 
 func platformBinaryPath(path string) string { return path }
 
-func signalChildProcess(process *os.Process, signal syscall.Signal) error {
+type childProcessTree struct{}
+
+func startChildProcess(cmd *exec.Cmd) (childProcessTree, error) {
+	return childProcessTree{}, cmd.Start()
+}
+func closeChildProcessTree(childProcessTree) error { return nil }
+
+func signalChildProcess(_ childProcessTree, process *os.Process, signal syscall.Signal) error {
 	return process.Signal(signal)
 }
-func interruptChildProcess(process *os.Process) error { return process.Signal(syscall.SIGINT) }
-func killChildProcess(process *os.Process) error      { return process.Signal(syscall.SIGKILL) }
+func interruptChildProcess(_ childProcessTree, process *os.Process) error {
+	return process.Signal(syscall.SIGINT)
+}
+func killChildProcess(_ childProcessTree, process *os.Process) error {
+	return process.Signal(syscall.SIGKILL)
+}

@@ -32,6 +32,7 @@ func (be *BinaryExecutor) NewCommand(name string, arg ...string) (Command, error
 type BinaryCommand struct {
 	*sync.RWMutex
 	*exec.Cmd
+	processTree childProcessTree
 }
 
 func NewBinaryCommand(binary string, arg ...string) (*BinaryCommand, error) {
@@ -63,6 +64,33 @@ func (bc *BinaryCommand) SetOutput(writer io.Writer) {
 	bc.Stderr = writer
 }
 
+func (bc *BinaryCommand) Run() error {
+	bc.Lock()
+	processTree, err := startChildProcess(bc.Cmd)
+	if err != nil {
+		if bc.Process != nil {
+			_ = bc.Process.Kill()
+		}
+		bc.Unlock()
+		if bc.Process != nil {
+			_ = bc.Cmd.Wait()
+		}
+		return err
+	}
+	bc.processTree = processTree
+	bc.Unlock()
+
+	runErr := bc.Cmd.Wait()
+	bc.Lock()
+	closeErr := closeChildProcessTree(bc.processTree)
+	bc.processTree = childProcessTree{}
+	bc.Unlock()
+	if runErr != nil {
+		return runErr
+	}
+	return closeErr
+}
+
 func (bc *BinaryCommand) IsRunning() bool {
 	bc.RLock()
 	defer bc.RUnlock()
@@ -73,7 +101,7 @@ func (bc *BinaryCommand) StopWithSignal(signal syscall.Signal) {
 	bc.RLock()
 	defer bc.RUnlock()
 	if bc.Process != nil {
-		if err := signalChildProcess(bc.Process, signal); err != nil {
+		if err := signalChildProcess(bc.processTree, bc.Process, signal); err != nil {
 			logrus.WithError(err).Error("failed to send signal to process")
 		}
 	}
@@ -83,7 +111,7 @@ func (bc *BinaryCommand) Stop() {
 	bc.RLock()
 	defer bc.RUnlock()
 	if bc.Process != nil {
-		if err := interruptChildProcess(bc.Process); err != nil {
+		if err := interruptChildProcess(bc.processTree, bc.Process); err != nil {
 			logrus.WithError(err).Error("failed to send signal to process")
 		}
 	}
@@ -93,7 +121,7 @@ func (bc *BinaryCommand) Kill() {
 	bc.RLock()
 	defer bc.RUnlock()
 	if bc.Process != nil {
-		if err := killChildProcess(bc.Process); err != nil {
+		if err := killChildProcess(bc.processTree, bc.Process); err != nil {
 			logrus.WithError(err).Error("failed to send signal to process")
 		}
 	}
