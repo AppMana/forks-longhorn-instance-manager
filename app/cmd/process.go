@@ -240,6 +240,7 @@ func getProcessManagerClient(c *cli.Context, ctx context.Context, ctxCancel cont
 	tlsDir := c.GlobalString("tls-dir")
 
 	if tlsDir != "" {
+		tlsDir = util.ResolveContainerMountPath(tlsDir)
 		imClient, err := client.NewProcessManagerClientWithTLS(ctx, ctxCancel, url,
 			filepath.Join(tlsDir, "ca.crt"),
 			filepath.Join(tlsDir, "tls.crt"),

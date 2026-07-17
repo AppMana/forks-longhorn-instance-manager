@@ -64,6 +64,7 @@ func startWindows(c *cli.Context) error {
 
 	var tlsConfig *tls.Config
 	if tlsDir := c.GlobalString("tls-dir"); tlsDir != "" {
+		tlsDir = util.ResolveContainerMountPath(tlsDir)
 		tlsConfig, err = util.LoadServerTLS(
 			filepath.Join(tlsDir, "ca.crt"), filepath.Join(tlsDir, "tls.crt"), filepath.Join(tlsDir, "tls.key"),
 			"longhorn-backend.longhorn-system")
