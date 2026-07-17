@@ -64,6 +64,24 @@ func (l *failingDeleteLifecycle) Deleted(p *Process) error {
 	return context.Canceled
 }
 
+type recordingSwitchLifecycle struct {
+	oldRunning   bool
+	newRunning   bool
+	distinctPort bool
+	oldUUID      string
+	newUUID      string
+}
+
+func (*recordingSwitchLifecycle) Started(*Process) error { return nil }
+func (l *recordingSwitchLifecycle) SwitchOver(oldProcess, newProcess *Process) error {
+	l.oldRunning = oldProcess.RPCResponse().Status.State == types.ProcessStateRunning
+	l.newRunning = newProcess.RPCResponse().Status.State == types.ProcessStateRunning
+	l.distinctPort = oldProcess.PortStart != newProcess.PortStart && oldProcess.PortEnd != newProcess.PortEnd
+	l.oldUUID, l.newUUID = oldProcess.UUID, newProcess.UUID
+	return nil
+}
+func (*recordingSwitchLifecycle) Deleted(*Process) error { return nil }
+
 func (pw *ProcessWatcher) Context() context.Context {
 	return context.Background()
 }
@@ -260,6 +278,31 @@ func (s *TestSuite) TestProcessReplaceKeepsOldProcessOnLifecycleFailure(c *C) {
 	c.Assert(after.Status.Uuid, Equals, before.Status.Uuid)
 	c.Assert(after.Spec.Binary, Equals, TestBinary)
 	c.Assert(after.Status.State, Equals, types.ProcessStateRunning)
+	assertProcessDeletion(c, s.pm, name)
+}
+
+func (s *TestSuite) TestProcessReplaceKeepsBothVersionsAliveUntilSwitchOver(c *C) {
+	name := "test_process_replace_continuity"
+	lifecycle := &recordingSwitchLifecycle{}
+	s.pm.Lifecycle = lifecycle
+	defer func() { s.pm.Lifecycle = nil }()
+
+	assertProcessCreation(c, s.pm, name, TestBinary)
+	before, err := s.pm.ProcessGet(context.TODO(), &rpc.ProcessGetRequest{Name: name})
+	c.Assert(err, IsNil)
+
+	replaced, err := s.pm.ProcessReplace(context.TODO(), &rpc.ProcessReplaceRequest{
+		Spec:            createProcessSpec(name, TestBinaryReplace),
+		TerminateSignal: "SIGHUP",
+	})
+	c.Assert(err, IsNil)
+	c.Assert(lifecycle.oldRunning, Equals, true)
+	c.Assert(lifecycle.newRunning, Equals, true)
+	c.Assert(lifecycle.distinctPort, Equals, true)
+	c.Assert(lifecycle.oldUUID, Equals, before.Status.Uuid)
+	c.Assert(lifecycle.newUUID, Equals, replaced.Status.Uuid)
+	c.Assert(lifecycle.oldUUID == lifecycle.newUUID, Equals, false)
+	c.Assert(replaced.Spec.Binary, Equals, TestBinaryReplace)
 	assertProcessDeletion(c, s.pm, name)
 }
 
