@@ -310,7 +310,7 @@ github.com/google/uuid
 # github.com/gorilla/handlers v1.5.2
 ## explicit; go 1.20
 github.com/gorilla/handlers
-# github.com/gostor/gotgt v0.2.3-0.20260317071013-7f708d0cf945 => github.com/AppMana/forks-gotgt v0.2.3-0.20260717191431-2d3bde6d6fff
+# github.com/gostor/gotgt v0.2.3-0.20260317071013-7f708d0cf945 => github.com/AppMana/forks-gotgt v0.2.3-0.20260717194034-cda5557b12de
 ## explicit; go 1.25.0
 github.com/gostor/gotgt/pkg/api
 github.com/gostor/gotgt/pkg/config
@@ -987,7 +987,7 @@ sigs.k8s.io/structured-merge-diff/v6/value
 # sigs.k8s.io/yaml v1.6.0
 ## explicit; go 1.22
 sigs.k8s.io/yaml
-# github.com/gostor/gotgt => github.com/AppMana/forks-gotgt v0.2.3-0.20260717191431-2d3bde6d6fff
+# github.com/gostor/gotgt => github.com/AppMana/forks-gotgt v0.2.3-0.20260717194034-cda5557b12de
 # github.com/longhorn/backupstore => github.com/AppMana/forks-backupstore v0.0.0-20260717192730-23c8e70f4c7e
 # github.com/longhorn/go-common-libs => github.com/AppMana/forks-go-common-libs v0.0.0-20260717150855-7a907bc7d6a5
 # github.com/longhorn/go-iscsi-helper => github.com/AppMana/forks-go-iscsi-helper v0.0.0-20260717192730-2a31aff56325

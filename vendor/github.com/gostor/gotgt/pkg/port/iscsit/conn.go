@@ -227,7 +227,15 @@ func (conn *iscsiConnection) buildRespPackage(oc OpCode, task *iscsiTask) error 
 		conn.resp.NSG = conn.loginParam.tgtNSG
 		conn.resp.ExpCmdSN = conn.req.CmdSN
 		conn.resp.MaxCmdSN = conn.req.CmdSN
-		if conn.req.CSG != SecurityNegotiation {
+		if conn.req.CSG == SecurityNegotiation {
+			// RFC 7143 key negotiation requires the target to answer the
+			// initiator's AuthMethod offer. Windows closes the login
+			// connection when a successful security-stage transition carries
+			// no negotiated authentication key.
+			if _, offered := util.ParseKVText(conn.req.RawData)["AuthMethod"]; offered {
+				conn.resp.RawData = util.MarshalKVText([]util.KeyValue{{Key: "AuthMethod", Value: "None"}})
+			}
+		} else {
 			negoKeys, err := conn.processLoginData()
 			if err != nil {
 				return err

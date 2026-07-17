@@ -25,7 +25,7 @@ require (
 
 // Windows V1 support currently spans upstream modules. Keep each source change
 // in its owning public fork; vendor/ is generated from these immutable pins.
-replace github.com/gostor/gotgt => github.com/AppMana/forks-gotgt v0.2.3-0.20260717191431-2d3bde6d6fff
+replace github.com/gostor/gotgt => github.com/AppMana/forks-gotgt v0.2.3-0.20260717194034-cda5557b12de
 
 replace github.com/longhorn/backupstore => github.com/AppMana/forks-backupstore v0.0.0-20260717192730-23c8e70f4c7e
 
