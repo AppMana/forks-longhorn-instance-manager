@@ -4,13 +4,13 @@ package cmd
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"time"
 
-	"github.com/cockroachdb/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"google.golang.org/grpc"
@@ -68,20 +68,21 @@ func startWindows(c *cli.Context) error {
 	serverOptions = append(serverOptions, grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
 		MinTime: 10 * time.Second, PermitWithoutStream: true,
 	}))
+	var tlsConfig *tls.Config
 	if tlsDir := c.GlobalString("tls-dir"); tlsDir != "" {
-		tlsConfig, err := util.LoadServerTLS(
+		tlsConfig, err = util.LoadServerTLS(
 			filepath.Join(tlsDir, "ca.crt"), filepath.Join(tlsDir, "tls.crt"), filepath.Join(tlsDir, "tls.key"),
 			"longhorn-backend.longhorn-system")
 		if err != nil {
-			return errors.Wrap(err, "load instance-manager TLS configuration")
+			logrus.WithError(err).Warnf("Failed to add TLS key pair from %v", tlsDir)
 		}
-		grpcServer, listener, err := util.NewServer(c.String("listen"), tlsConfig, serverOptions...)
-		if err != nil {
-			return err
-		}
-		return serveWindowsProcessManager(ctx, cancel, manager, grpcServer, listener)
 	}
-	grpcServer, listener, err := util.NewServer(c.String("listen"), nil, serverOptions...)
+	if tlsConfig != nil {
+		logrus.Info("Creating Windows process-manager gRPC server with mTLS auth")
+	} else {
+		logrus.Info("Creating Windows process-manager gRPC server with no auth")
+	}
+	grpcServer, listener, err := util.NewServer(c.String("listen"), tlsConfig, serverOptions...)
 	if err != nil {
 		return err
 	}
