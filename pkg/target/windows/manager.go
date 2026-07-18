@@ -8,7 +8,9 @@ import (
 	"hash/fnv"
 	"math"
 	"net"
+	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -56,6 +58,11 @@ func NewManager(ctx context.Context, portal string) (*Manager, error) {
 	if err != nil {
 		return nil, fmt.Errorf("listen for shared Windows iSCSI target on %s: %w", portal, err)
 	}
+	advertisedPortal, err := getAdvertisedPortal(listener.Addr().String(), os.Getenv("POD_IP"))
+	if err != nil {
+		_ = listener.Close()
+		return nil, err
+	}
 	service := scsi.NewSCSITargetService()
 	driverInterface, err := scsi.NewTargetDriver("iscsi", service)
 	if err != nil {
@@ -63,7 +70,7 @@ func NewManager(ctx context.Context, portal string) (*Manager, error) {
 		return nil, err
 	}
 	driver := driverInterface.(*iscsit.ISCSITargetDriver)
-	m := &Manager{driver: driver, portal: listener.Addr().String(), targets: map[string]*target{}}
+	m := &Manager{driver: driver, portal: advertisedPortal, targets: map[string]*target{}}
 	go func() {
 		if err := driver.RunListener(listener); err != nil {
 			logrus.WithError(err).Error("Windows iSCSI target service stopped")
@@ -74,6 +81,25 @@ func NewManager(ctx context.Context, portal string) (*Manager, error) {
 		_ = driver.Close()
 	}()
 	return m, nil
+}
+
+func getAdvertisedPortal(listenerAddress, podIP string) (string, error) {
+	host, port, err := net.SplitHostPort(listenerAddress)
+	if err != nil {
+		return "", fmt.Errorf("parse Windows iSCSI listener address %q: %w", listenerAddress, err)
+	}
+	podIP = strings.Trim(strings.TrimSpace(podIP), "[]")
+	if podIP != "" {
+		ip := net.ParseIP(podIP)
+		if ip == nil {
+			return "", fmt.Errorf("POD_IP %q is not a valid IP address", podIP)
+		}
+		return net.JoinHostPort(ip.String(), port), nil
+	}
+	if host == "" || net.ParseIP(host).IsUnspecified() {
+		return "", fmt.Errorf("POD_IP is required when the Windows iSCSI listener uses wildcard address %q", listenerAddress)
+	}
+	return net.JoinHostPort(host, port), nil
 }
 
 func (m *Manager) Started(p *process.Process) error {
